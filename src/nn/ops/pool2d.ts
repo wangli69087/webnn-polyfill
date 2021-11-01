@@ -36,7 +36,7 @@ export abstract class Pool extends SingleOutputOperation {
       dilations: [number, number] = [1, 1],
       layout: MLInputOperandLayout = MLInputOperandLayout.nchw,
       roundingType: MLRoundingType = MLRoundingType.floor,
-      outputSizes: [number, number] = [1, 1],
+      outputSizes: [number, number] = undefined,
       autoPad: MLAutoPad = MLAutoPad.explicit) {
     utils.assert(
         utils.isIntegerArray(windowDimensions) && windowDimensions.length === 2,
@@ -107,23 +107,34 @@ export abstract class Pool extends SingleOutputOperation {
       } else {
         // Calculate the explicit paddings for 'same-lower'
         padding = [[0, 0], [0, 0], [0, 0], [0, 0]];
-        const outputSizes = [0, 0];
-        for (let i = 0; i < 2; ++i) {
-          outputSizes[i] = Math.ceil(input.shape[1 + i] / this.strides_[i]);
-        }
+        let outputSizes = [0, 0];
         const totalPadding: [number, number] = [0, 0];
+        if (this.outputSizes_ === undefined) {
+          for (let i = 0; i < 2; ++i) {
+            outputSizes[i] = Math.ceil(input.shape[1 + i] / this.strides_[i]);
+          } 
+        } else {
+          outputSizes = this.outputSizes_;
+        }
         for (let i = 0; i < 2; ++i) {
           totalPadding[i] = this.strides_[i] * (outputSizes[i] - 1) +
               ((windowDimensions[i] - 1) * this.dilations_[i] + 1) -
               input.shape[1 + i];
         }
-        for (let i = 0; i < 2; ++i) {
-          if (this.roundingType_ === MLRoundingType.floor) {
-          padding[i + 1][0] = totalPadding[i] - Math.floor(totalPadding[i] / 2);
-          padding[i + 1][1] = Math.floor(totalPadding[i] / 2);
-          } else {
-          padding[i + 1][0] = totalPadding[i] - Math.ceil(totalPadding[i] / 2);
-          padding[i + 1][1] = Math.ceil(totalPadding[i] / 2);
+        if (this.outputSizes_ === undefined) {
+          for (let i = 0; i < 2; ++i) {
+            if (this.roundingType_ === MLRoundingType.floor) {
+              padding[i + 1][0] = totalPadding[i] - Math.floor(totalPadding[i] / 2);
+              padding[i + 1][1] = Math.floor(totalPadding[i] / 2);
+            } else {
+              padding[i + 1][0] = totalPadding[i] - Math.ceil(totalPadding[i] / 2);
+              padding[i + 1][1] = Math.ceil(totalPadding[i] / 2);
+            }
+          }
+        } else {
+          for (let i = 0; i < 2; ++i) {
+            padding[i + 1][0] = totalPadding[i] - Math.floor(totalPadding[i] / 2);
+            padding[i + 1][1] = Math.floor(totalPadding[i] / 2);
           }
         }
       }

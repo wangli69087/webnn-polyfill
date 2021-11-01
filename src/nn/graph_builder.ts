@@ -29,8 +29,8 @@ import * as utils from './utils';
  * [spec](https://webmachinelearning.github.io/webnn/#enumdef-mlroundingtype)
  */
  export enum MLRoundingType {
-  'floor' = 'floor',
-  'ceil' = 'ceil'
+  'ceil' = 'ceil',
+  'floor' = 'floor'
 }
 
 /**
