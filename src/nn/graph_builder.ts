@@ -26,6 +26,14 @@ import {ArrayBufferView} from './types';
 import * as utils from './utils';
 
 /**
+ * [spec](https://webmachinelearning.github.io/webnn/#enumdef-mlroundingtype)
+ */
+ export enum MLRoundingType {
+  'floor' = 'floor',
+  'ceil' = 'ceil'
+}
+
+/**
  * [spec](https://webmachinelearning.github.io/webnn/#enumdef-mlinputoperandlayout)
  */
 export enum MLInputOperandLayout {
@@ -187,6 +195,8 @@ export interface MLPooling2dOptions {
   dilations?: [number, number];
   autoPad?: MLAutoPad;
   layout?: MLInputOperandLayout;
+  roundingType?: MLRoundingType;
+  outputSizes?: [number, number];
 }
 
 /**

@@ -1,7 +1,7 @@
 import * as tf from '@tensorflow/tfjs-core';
 import {ExplicitPadding} from '@tensorflow/tfjs-core/dist/ops/conv_util';
 
-import {MLAutoPad, MLInputOperandLayout, MLPooling2dOptions} from '../graph_builder';
+import {MLAutoPad, MLInputOperandLayout, MLRoundingType, MLPooling2dOptions} from '../graph_builder';
 import {MLOperand} from '../operand';
 import {SingleOutputOperation} from '../operation';
 import * as utils from '../utils';
@@ -16,6 +16,8 @@ export abstract class Pool extends SingleOutputOperation {
   protected dilations_?: [number, number];
   protected groups_?: number;
   protected layout_?: MLInputOperandLayout;
+  protected roundingType_?: MLRoundingType;
+  protected outputSizes_?: [number, number];
   private autoPad_?: MLAutoPad;
 
   constructor(input: MLOperand, options: MLPooling2dOptions = {}) {
@@ -24,14 +26,17 @@ export abstract class Pool extends SingleOutputOperation {
     this.input_ = input;
     this.initOptions(
         options.windowDimensions, options.padding, options.strides,
-        options.dilations, options.layout, options.autoPad);
+        options.dilations, options.layout,  options.roundingType, options.outputSizes, options.autoPad);
   }
 
   private initOptions(
       windowDimensions: [number, number] = [-1, -1],
       padding: [number, number, number, number] = [0, 0, 0, 0],
-      strides: [number, number] = [1, 1], dilations: [number, number] = [1, 1],
+      strides: [number, number] = [1, 1], 
+      dilations: [number, number] = [1, 1],
       layout: MLInputOperandLayout = MLInputOperandLayout.nchw,
+      roundingType: MLRoundingType = MLRoundingType.floor,
+      outputSizes: [number, number] = [1, 1],
       autoPad: MLAutoPad = MLAutoPad.explicit) {
     utils.assert(
         utils.isIntegerArray(windowDimensions) && windowDimensions.length === 2,
@@ -56,6 +61,15 @@ export abstract class Pool extends SingleOutputOperation {
     utils.assert(
         layout in MLInputOperandLayout, 'The layout parameter is invalid.');
     this.layout_ = layout;
+
+    utils.assert(
+        roundingType in MLRoundingType, 'The roundingType parameter is invalid.');
+    this.roundingType_ = roundingType;
+
+    utils.assert(
+        utils.isIntegerArray(outputSizes) && outputSizes.length === 2,
+        'The outputSizes parameter is invalid.');
+    this.outputSizes_ = outputSizes;
 
     utils.assert(autoPad in MLAutoPad, 'The autoPad parameter is invalid.');
     this.autoPad_ = autoPad;
@@ -104,8 +118,13 @@ export abstract class Pool extends SingleOutputOperation {
               input.shape[1 + i];
         }
         for (let i = 0; i < 2; ++i) {
+          if (this.roundingType_ === MLRoundingType.floor) {
           padding[i + 1][0] = totalPadding[i] - Math.floor(totalPadding[i] / 2);
           padding[i + 1][1] = Math.floor(totalPadding[i] / 2);
+          } else {
+          padding[i + 1][0] = totalPadding[i] - Math.ceil(totalPadding[i] / 2);
+          padding[i + 1][1] = Math.ceil(totalPadding[i] / 2);
+          }
         }
       }
     }
