@@ -37,8 +37,8 @@ describe('test mobilenetv2 nchw', function() {
           return builder.clamp(
               conv,
               {
-                minValue: builder.constant(0.),
-                maxValue: builder.constant(6.0),
+                minValue: 0,
+                maxValue: 6,
               },
           );
         }
@@ -138,7 +138,7 @@ describe('test mobilenetv2 nchw', function() {
     fusedGraph = await buildMobileNet();
   });
 
-  after(async () => {
+  after(() => {
     if (typeof _tfengine !== 'undefined') {
       // Check memory leaks.
       graph.dispose();

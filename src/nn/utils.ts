@@ -1,5 +1,5 @@
 import * as tf from '@tensorflow/tfjs-core';
-import {ExplicitPadding} from '@tensorflow/tfjs-core/src/ops/conv_util';
+import {ExplicitPadding} from '@tensorflow/tfjs-core/dist/ops/conv_util';
 
 import {MLAutoPad, MLBufferView} from './graph_builder';
 import {MLOperand, MLOperandDescriptor, MLOperandType} from './operand';
@@ -28,6 +28,18 @@ export function isTypedArray(array: MLBufferView|WebGLTexture): boolean {
       array instanceof Uint32Array || array instanceof Int16Array ||
       array instanceof Uint16Array || array instanceof Int8Array ||
       array instanceof Uint8Array;
+}
+
+export function isValidResample2dAxes(array: number[]): boolean {
+  if (array[0] === 0 && array[1] === 1) {
+    return true;
+  } else if (array[0] === 1 && array[1] === 2) {
+    return true;
+  } else if (array[0] === 2 && array[1] === 3) {
+    return true;
+  } else {
+    return false;
+  }
 }
 
 export function getTypedArray(type: MLOperandType): Float32ArrayConstructor|
@@ -188,39 +200,77 @@ export function validateAxes(axes: number[], rank: number): boolean {
   return true;
 }
 
+export function product(array: number[]): number {
+  return array.reduce(
+      (accumulator, currentValue) => accumulator * currentValue);
+}
+
+export function checkShape(actual: number[], expected: number[]): void {
+  assert(actual.length === expected.length,
+    `The actual length ${actual.length} is not equal to expected length ` +
+    `${expected.length}.`);
+  for (let i = 0; i < actual.length; ++i) {
+    assert(
+      actual[i] === expected[i],
+      `${actual[i]} is not equal to ${expected[i]} of index ${i}.`
+      );
+  }
+}
+
 export function getPaddings(
     input: tf.Tensor4D, filter: tf.Tensor4D,
     padding: [number, number, number, number], strides: [number, number],
-    outputPadding: [number, number], dilations: [number, number],
-    autoPad: MLAutoPad): 'valid'|'same'|ExplicitPadding {
+    dilations: [number, number], autoPad: MLAutoPad,
+    outputPadding?: [number, number]): ExplicitPadding {
+  // input layout: NHWC
   // WebNN padding:
   //   [beginning_height, ending_height, beginning_width, ending_width]
   // tf.conv2d NHWC should be in the following form:
   //   [[0, 0], [pad_top,pad_bottom], [pad_left, pad_right], [0, 0]]
-  let resultPadding: 'valid'|'same'|ExplicitPadding;
+  let resultPadding: ExplicitPadding;
   if (autoPad === MLAutoPad.explicit) {
-    if (padding.every(v => v === 0)) {
-      resultPadding = 'valid';
-    } else {
-      resultPadding = [
-        [0, 0], [padding[0], padding[1]], [padding[2], padding[3]], [0, 0]
-      ] as ExplicitPadding;
-    }
+    resultPadding = [
+      [0, 0], [padding[0], padding[1]], [padding[2], padding[3]], [0, 0]
+    ] as ExplicitPadding;
   } else {
-    if (autoPad === MLAutoPad['same-upper']) {
-      resultPadding = 'same';
-    } else {
-      // Calculate the explicit paddings for 'same-lower'
-      resultPadding = [[0, 0], [0, 0], [0, 0], [0, 0]];
-      const outputSizes = [0, 0];
+    resultPadding = [[0, 0], [0, 0], [0, 0], [0, 0]];
+    const totalPadding: [number, number] = [0, 0];
+    if (outputPadding === undefined) {
+      // conv2d
       for (let i = 0; i < 2; ++i) {
-        outputSizes[i] = Math.ceil(input.shape[1 + i] / strides[i]);
-      }
-      const totalPadding: [number, number] = [0, 0];
-      for (let i = 0; i < 2; ++i) {
-        totalPadding[i] = strides[i] * (outputSizes[i] - 1) + outputPadding[i] +
+        // totalPadding = beginning padding + ending padding
+        // SAME_UPPER or SAME_LOWER mean pad the input so that
+        //   output size = ceil(input size / strides)
+        // output size = 1 +
+        //     (input size - filter size - (filter size - 1) * (dilation - 1) +
+        //      beginning padding + ending padding) / stride
+        totalPadding[i] =
+            strides[i] * (Math.ceil(input.shape[1 + i] / strides[i]) - 1) +
             ((filter.shape[i] - 1) * dilations[i] + 1) - input.shape[1 + i];
       }
+    } else {
+      // convTranspose2d
+      for (let i = 0; i < 2; ++i) {
+        // totalPadding = beginning padding + ending padding
+        // SAME_UPPER or SAME_LOWER mean pad the input so that
+        //   output size = input size * strides
+        // output size = (input size - 1) * stride + filter size +
+        //     (filter size - 1) * (dilation - 1) - beginning padding -
+        //     ending padding + output padding
+        totalPadding[i] = (input.shape[1 + i] - 1) * strides[i] +
+            filter.shape[i] + (filter.shape[i] - 1) * (dilations[i] - 1) +
+            outputPadding[i] - input.shape[1 + i] * strides[i];
+      }
+    }
+    if (autoPad === MLAutoPad['same-upper']) {
+      // Calculate the explicit paddings for 'same-upper'
+      for (let i = 0; i < 2; ++i) {
+        resultPadding[i + 1][0] =
+            totalPadding[i] - Math.ceil(totalPadding[i] / 2);
+        resultPadding[i + 1][1] = Math.ceil(totalPadding[i] / 2);
+      }
+    } else {
+      // Calculate the explicit paddings for 'same-lower'
       for (let i = 0; i < 2; ++i) {
         resultPadding[i + 1][0] =
             totalPadding[i] - Math.floor(totalPadding[i] / 2);
@@ -229,4 +279,61 @@ export function getPaddings(
     }
   }
   return resultPadding;
+}
+
+export function computeImplicitPaddingForAutoPad(
+    autoPad: MLAutoPad, dilation: number, inputSize: number,
+    filterSize: number, stride: number, paddingBegin: number,
+    paddingEnd: number): [number, number] {
+  const outSize = (inputSize + stride - 1) / stride;
+  const dilatedFilter = filterSize + (filterSize - 1) * (dilation - 1);
+  const neededInput = (outSize - 1) * stride + dilatedFilter;
+  const totalPadding = neededInput > inputSize ? neededInput - inputSize : 0;
+
+  switch(autoPad) {
+    case MLAutoPad['same-upper']: {
+      paddingBegin = Math.floor(totalPadding / 2);
+      paddingEnd = Math.floor((totalPadding + 1) / 2);
+      break;
+    }
+    case MLAutoPad['same-lower']: {
+      paddingBegin = Math.floor((totalPadding + 1) / 2);
+      paddingEnd = Math.floor(totalPadding / 2);
+      break;
+    }
+    default: {
+      break;
+    }
+  }
+  return [paddingBegin, paddingEnd];
+}
+
+export function getBroadcastShape(shapeA: number[], shapeB: number[]):
+    number[] {
+  // According to General Broadcasting Rules on
+  //   https://numpy.org/doc/stable/user/basics.broadcasting.html.
+  const outShape = [];
+  const lenA = shapeA.length;
+  const lenB = shapeB.length;
+  const outlen = Math.max(lenA, lenB);
+  for (let i = 0; i < outlen; ++i) {
+    let a = shapeA[lenA - i - 1];
+    if (a === undefined) {
+      a = 1;
+    }
+    let b = shapeB[lenB - i - 1];
+    if (b === undefined) {
+      b = 1;
+    }
+    if (a === 1) {
+      outShape.unshift(b);
+    } else if (b === 1) {
+      outShape.unshift(a);
+    } else if (a !== b) {
+      throw new Error(`Shapes [${shapeA}] and [${shapeB}] are incompatible.`);
+    } else {
+      outShape.unshift(a);
+    }
+  }
+  return outShape;
 }

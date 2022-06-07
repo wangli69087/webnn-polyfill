@@ -6,6 +6,7 @@ import * as utils from '../utils';
 
 export abstract class Unary extends SingleOutputOperation {
   protected x_: MLOperand;
+  private needCheckOutputShape_: boolean;
 
   constructor(x: MLOperand) {
     if (x !== undefined) {
@@ -16,6 +17,7 @@ export abstract class Unary extends SingleOutputOperation {
       super(undefined);
       this.x_ = undefined;
     }
+    this.needCheckOutputShape_ = true;
   }
 
   inputs(): MLOperand[] {
@@ -24,10 +26,34 @@ export abstract class Unary extends SingleOutputOperation {
 
   run(inputTensors: Map<MLOperand, tf.Tensor>): tf.Tensor {
     const x: tf.Tensor = inputTensors.get(this.x_);
-    return this.runOp(x);
+    const output: tf.Tensor = this.runOp(x);
+    if (this.needCheckOutputShape_) {
+      // The output shape is the same shape as the input
+      utils.checkShape(output.shape, x.shape);
+      this.needCheckOutputShape_ = false;
+    }
+    return output;
   }
 
   abstract runOp(x: tf.Tensor): tf.Tensor;
+}
+
+export class Abs extends Unary {
+  runOp(x: tf.Tensor): tf.Tensor {
+    return tf.abs(x);
+  }
+}
+
+export class Ceil extends Unary {
+  runOp(x: tf.Tensor): tf.Tensor {
+    return tf.ceil(x);
+  }
+}
+
+export class Cos extends Unary {
+  runOp(x: tf.Tensor): tf.Tensor {
+    return tf.cos(x);
+  }
 }
 
 export class Exp extends Unary {
@@ -36,9 +62,33 @@ export class Exp extends Unary {
   }
 }
 
-export class Sqrt extends Unary {
+export class Floor extends Unary {
   runOp(x: tf.Tensor): tf.Tensor {
-    return tf.sqrt(x);
+    return tf.floor(x);
+  }
+}
+
+export class Log extends Unary {
+  runOp(x: tf.Tensor): tf.Tensor {
+    return tf.log(x);
+  }
+}
+
+export class Neg extends Unary {
+  runOp(x: tf.Tensor): tf.Tensor {
+    return tf.neg(x);
+  }
+}
+
+export class Sin extends Unary {
+  runOp(x: tf.Tensor): tf.Tensor {
+    return tf.sin(x);
+  }
+}
+
+export class Tan extends Unary {
+  runOp(x: tf.Tensor): tf.Tensor {
+    return tf.tan(x);
   }
 }
 
@@ -67,5 +117,19 @@ export class Tanh extends UnaryMLOperator {
 export class Relu extends UnaryMLOperator {
   runOp(x: tf.Tensor): tf.Tensor {
     return tf.relu(x);
+  }
+}
+
+export class HardSwish extends UnaryMLOperator {
+  runOp(x: tf.Tensor): tf.Tensor {
+    return tf.div(
+      tf.mul(
+          x,
+          tf.maximum(
+              0,
+              tf.minimum(
+                  6,
+                  tf.add(x, 3)))),
+      6);
   }
 }

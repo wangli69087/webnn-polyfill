@@ -7,21 +7,22 @@ import {Add, Div, MatMul, Max, Min, Mul, Pow, Sub} from './ops/binary';
 import {Clamp} from './ops/clamp';
 import {Concat} from './ops/concat';
 import {Conv2d} from './ops/conv2d';
+import {ConvTranspose2d} from './ops/conv_transpose2d';
 import {Gemm} from './ops/gemm';
 import {Gru, GruCell} from './ops/gru';
 import {InstanceNormalization} from './ops/instance_norm';
 import {LeakyRelu} from './ops/leaky_relu';
 import {Pad} from './ops/pad';
-import {AveragePool2d, MaxPool2d} from './ops/pool2d';
-import {ReduceLogSumExp, ReduceMax, ReduceMean, ReduceMin, ReduceProduct, ReduceSum} from './ops/reduce';
-import {Resample} from './ops/resample';
+import {AveragePool2d, L2Pool2d, MaxPool2d} from './ops/pool2d';
+import {ReduceL1, ReduceL2, ReduceLogSumExp, ReduceMax, ReduceMean, ReduceMin, ReduceProduct, ReduceSum} from './ops/reduce';
+import {Resample2d} from './ops/resample2d';
 import {Reshape} from './ops/reshape';
 import {Slice} from './ops/slice';
 import {Softmax} from './ops/softmax';
 import {Split} from './ops/split';
 import {Squeeze} from './ops/squeeze';
 import {Transpose} from './ops/transpose';
-import {Exp, Relu, Sigmoid, Tanh} from './ops/unary';
+import {Abs, Ceil, Cos, Exp, Floor, HardSwish, Log, Neg, Relu, Sigmoid, Sin, Tan, Tanh} from './ops/unary';
 import {ArrayBufferView} from './types';
 import * as utils from './utils';
 
@@ -48,18 +49,18 @@ export interface MLBatchNormalizationOptions {
  * [spec](https://webmachinelearning.github.io/webnn/#dictdef-mlclampoptions)
  */
 export interface MLClampOptions {
-  minValue?: MLOperand;
-  maxValue?: MLOperand;
+  minValue?: number;
+  maxValue?: number;
 }
 
 /**
- * [spec](https://webmachinelearning.github.io/webnn/#enumdef-mlfilteroperandlayout)
+ * [spec](https://webmachinelearning.github.io/webnn/#enumdef-mlconv2dfilteroperandlayout)
  */
-export enum MLFilterOperandLayout {
+export enum MLConv2dFilterOperandLayout {
   'oihw' = 'oihw',
   'hwio' = 'hwio',
   'ohwi' = 'ohwi',
-  'ihwo' = 'ihwo',
+  'ihwo' = 'ihwo'
 }
 
 /**
@@ -78,13 +79,36 @@ export interface MLConv2dOptions {
   padding?: [number, number, number, number];
   strides?: [number, number];
   dilations?: [number, number];
+  autoPad?: MLAutoPad;
+  groups?: number;
+  inputLayout?: MLInputOperandLayout;
+  filterLayout?: MLConv2dFilterOperandLayout;
+  bias?: MLOperand;
+  activation?: MLOperator;
+}
+
+/**
+ * [spec](https://webmachinelearning.github.io/webnn/#enumdef-mlconvtranspose2dfilteroperandlayout)
+ */
+export enum MLConvTranspose2dFilterOperandLayout {
+  'iohw' = 'iohw',
+  'hwoi' = 'hwoi',
+  'ohwi' = 'ohwi'
+}
+
+/**
+ * [spec](https://webmachinelearning.github.io/webnn/#dictdef-mlconvtranspose2doptions)
+ */
+export interface MLConvTranspose2dOptions {
+  padding?: [number, number, number, number];
+  strides?: [number, number];
+  dilations?: [number, number];
   outputPadding?: [number, number];
   outputSizes?: [number, number];
   autoPad?: MLAutoPad;
-  transpose?: boolean;
   groups?: number;
   inputLayout?: MLInputOperandLayout;
-  filterLayout?: MLFilterOperandLayout;
+  filterLayout?: MLConvTranspose2dFilterOperandLayout;
   bias?: MLOperand;
   activation?: MLOperator;
 }
@@ -177,6 +201,15 @@ export interface MLPadOptions {
   value?: number;
 }
 
+
+/**
+ * [spec](https://webmachinelearning.github.io/webnn/#enumdef-mlroundingtype)
+ */
+ export enum  MLRoundingType {
+  'floor' = 'floor',
+  'ceil' = 'ceil'
+}
+
 /**
  * [spec](https://webmachinelearning.github.io/webnn/#dictdef-mlpool2doptions)
  */
@@ -187,6 +220,8 @@ export interface MLPooling2dOptions {
   dilations?: [number, number];
   autoPad?: MLAutoPad;
   layout?: MLInputOperandLayout;
+  roundingType?: MLRoundingType;
+  outputSizes?: [number, number];
 }
 
 /**
@@ -206,12 +241,13 @@ export enum MLInterpolationMode {
 }
 
 /**
- * [spec](https://webmachinelearning.github.io/webnn/#dictdef-mlresampleoptions)
+ * [spec](https://webmachinelearning.github.io/webnn/#dictdef-mlresample2doptions)
  */
-export interface MLResampleOptions {
+export interface MLResample2dOptions {
   mode?: MLInterpolationMode;
-  scales?: [number, number, number, number];
-  sizes?: [number, number, number, number];
+  scales?: [number, number];
+  sizes?: [number, number];
+  axes?: [number, number];
 }
 
 /**
@@ -337,11 +373,10 @@ export class MLGraphBuilder {
       options: MLClampOptions = {}): MLOperand|MLOperator {
     if (operandOrOptions instanceof MLOperand) {
       const x = operandOrOptions;
-      this.validateOperandBuilder([x, options.minValue, options.maxValue]);
+      this.validateOperandBuilder([x]);
       return (new Clamp(x, options)).output;
     } else {
       const options = operandOrOptions;
-      this.validateOperandBuilder([options.minValue, options.maxValue]);
       return (new Clamp(undefined, options));
     }
   }
@@ -365,6 +400,20 @@ export class MLGraphBuilder {
     }
     this.validateOperandBuilder(inputs);
     return (new Conv2d(input, filter, options)).getFusedOutputs()[0];
+  }
+
+  /**
+   * [spec](https://webmachinelearning.github.io/webnn/#dom-mlgraphbuilder-convtranspose2d)
+   */
+  convTranspose2d(
+      input: MLOperand, filter: MLOperand, 
+      options: MLConvTranspose2dOptions = {}):MLOperand {
+    const inputs = [input, filter];
+    if (options.bias) {
+      inputs.push(options.bias);
+    }
+    this.validateOperandBuilder(inputs);
+    return (new ConvTranspose2d(input, filter, options)).getFusedOutputs()[0];
   }
 
   // start of element-wise binary operations
@@ -430,11 +479,89 @@ export class MLGraphBuilder {
   // start of element-wise unary operations
   // https://webmachinelearning.github.io/webnn/#dom-mlgraphbuilder-unary
   /**
+   * [spec](https://webmachinelearning.github.io/webnn/#dom-mlgraphbuilder-abs)
+   */
+  abs(x: MLOperand): MLOperand {
+    this.validateOperandBuilder([x]);
+    return (new Abs(x)).output;
+  }
+
+  /**
+   * [spec](https://webmachinelearning.github.io/webnn/#dom-mlgraphbuilder-ceil)
+   */
+  ceil(x: MLOperand): MLOperand {
+    this.validateOperandBuilder([x]);
+    return (new Ceil(x)).output;
+  }
+
+  /**
+   * [spec](https://webmachinelearning.github.io/webnn/#dom-mlgraphbuilder-cos)
+   */
+  cos(x: MLOperand): MLOperand {
+    this.validateOperandBuilder([x]);
+    return (new Cos(x)).output;
+  }
+
+  /**
    * [spec](https://webmachinelearning.github.io/webnn/#dom-mlgraphbuilder-exp)
    */
   exp(x: MLOperand): MLOperand {
     this.validateOperandBuilder([x]);
     return (new Exp(x)).output;
+  }
+
+  /**
+   * [spec](https://webmachinelearning.github.io/webnn/#dom-mlgraphbuilder-floor)
+   */
+  floor(x: MLOperand): MLOperand {
+    this.validateOperandBuilder([x]);
+    return (new Floor(x)).output;
+  }
+
+  /**
+   * [spec](https://webmachinelearning.github.io/webnn/#dom-mlgraphbuilder-log)
+   */
+  log(x: MLOperand): MLOperand {
+    this.validateOperandBuilder([x]);
+    return (new Log(x)).output;
+  }
+
+  /**
+   * [spec](https://webmachinelearning.github.io/webnn/#dom-mlgraphbuilder-neg)
+   */
+  neg(x: MLOperand): MLOperand {
+    this.validateOperandBuilder([x]);
+    return (new Neg(x)).output;
+  }
+
+  /**
+   * [spec](https://webmachinelearning.github.io/webnn/#dom-mlgraphbuilder-sin)
+   */
+  sin(x: MLOperand): MLOperand {
+    this.validateOperandBuilder([x]);
+    return (new Sin(x)).output;
+  }
+
+  /**
+   * [spec](https://webmachinelearning.github.io/webnn/#dom-mlgraphbuilder-tan)
+   */
+  tan(x: MLOperand): MLOperand {
+    this.validateOperandBuilder([x]);
+    return (new Tan(x)).output;
+  }
+
+  /**
+   * [spec](https://webmachinelearning.github.io/webnn/#dom-mlgraphbuilder-hard-swish)
+   */
+  hardSwish(input: MLOperand): MLOperand;
+  hardSwish(): MLOperator;
+  hardSwish(input: MLOperand = undefined): MLOperand|MLOperator {
+    if (input === undefined) {
+      return new HardSwish(undefined);
+    } else {
+      this.validateOperandBuilder([input]);
+      return (new HardSwish(input)).output;
+    }
   }
 
   /**
@@ -575,6 +702,14 @@ export class MLGraphBuilder {
   }
 
   /**
+   * [spec](https://webmachinelearning.github.io/webnn/#dom-mlgraphbuilder-l2pool2d)
+   */
+  l2Pool2d(input: MLOperand, options: MLPooling2dOptions = {}): MLOperand {
+    this.validateOperandBuilder([input]);
+    return (new L2Pool2d(input, options)).output;
+  }
+
+  /**
    * [spec](https://webmachinelearning.github.io/webnn/#dom-mlgraphbuilder-maxpool2d)
    */
   maxPool2d(input: MLOperand, options: MLPooling2dOptions = {}): MLOperand {
@@ -585,6 +720,22 @@ export class MLGraphBuilder {
 
   // start of reduction operations
   // https://webmachinelearning.github.io/webnn/#api-mlgraphbuilder-reduce
+  /**
+   * [spec](https://webmachinelearning.github.io/webnn/#dom-mlgraphbuilder-reducel1)
+   */
+  reduceL1(input: MLOperand, options: MLReduceOptions = {}): MLOperand {
+    this.validateOperandBuilder([input]);
+    return (new ReduceL1(input, options)).output;
+  }
+
+  /**
+   * [spec](https://webmachinelearning.github.io/webnn/#dom-mlgraphbuilder-reducel2)
+   */
+  reduceL2(input: MLOperand, options: MLReduceOptions = {}): MLOperand {
+    this.validateOperandBuilder([input]);
+    return (new ReduceL2(input, options)).output;
+  }
+
   /**
    * [spec](https://webmachinelearning.github.io/webnn/#dom-mlgraphbuilder-reducelogsumexp)
    */
@@ -635,11 +786,11 @@ export class MLGraphBuilder {
   // end of reduction operations
 
   /**
-   * [spec](https://webmachinelearning.github.io/webnn/#api-mlgraphbuilder-resample)
+   * [spec](https://webmachinelearning.github.io/webnn/#api-mlgraphbuilder-resample2d)
    */
-  resample(input: MLOperand, options: MLResampleOptions = {}): MLOperand {
+  resample2d(input: MLOperand, options: MLResample2dOptions = {}): MLOperand {
     this.validateOperandBuilder([input]);
-    return (new Resample(input, options)).output;
+    return (new Resample2d(input, options)).output;
   }
 
   /**

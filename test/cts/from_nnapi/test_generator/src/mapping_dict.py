@@ -10,6 +10,16 @@ class MappingRule(IntEnum):
 
 # NN-API Operations mapping WebNN API Operations
 MappingDict = {
+    'ABS': {
+        'webnnOperation': 'abs',
+        'insList': [
+            {
+                'name': 'input',
+                'mappingParamIndex': 0,
+                'mappingRuleType': 0
+            }
+        ]
+    },
     'ADD': {
         'webnnOperation': 'add',
         'insList': [
@@ -336,6 +346,16 @@ MappingDict = {
             }
         ]
     },
+    'FLOOR': {
+        'webnnOperation': 'floor',
+        'insList': [
+            {
+                'name': 'input',
+                'mappingParamIndex': 0,
+                'mappingRuleType': 0
+            }
+        ]
+    },
     'FULLY_CONNECTED': {
         'webnnOperation': 'matmul',
         'insList': [
@@ -357,6 +377,128 @@ MappingDict = {
             {
                 'name': 'activation',
                 'mappingParamIndex': -1
+            }
+        ]
+    },
+    'L2_POOL_2D': {
+        'webnnOperation': 'l2Pool2d',
+        'insList': [ # only support for explicit paddings
+            {
+                'name': 'input',
+                'mappingParamIndex': 0,
+                'mappingRuleType': 0
+            },
+            {
+                'name': 'paddingLeft',
+                'mappingParamIndex': 1,
+                'optionsDictKey': 'padding',
+                'sequenceIndex': 2, # [beginning_height, ending_height, beginning_width, ending_width]
+                'mappingRuleType': 1
+            },
+            {
+                'name': 'paddingRight',
+                'mappingParamIndex': 1,
+                'optionsDictKey': 'padding',
+                'sequenceIndex': 3,
+                'mappingRuleType': 1
+            },
+            {
+                'name': 'paddingTop',
+                'mappingParamIndex': 1,
+                'optionsDictKey': 'padding',
+                'sequenceIndex': 0,
+                'mappingRuleType': 1
+            },
+            {
+                'name': 'paddingBottom',
+                'mappingParamIndex': 1,
+                'optionsDictKey': 'padding',
+                'sequenceIndex': 1,
+                'mappingRuleType': 1
+            },
+            {
+                'name': 'strideWidth',
+                'mappingParamIndex': 1,
+                'optionsDictKey': 'strides',
+                'sequenceIndex': 1, # [stride_height, stride_width]
+                'mappingRuleType': 1
+            },
+            {
+                'name': 'strideHeight',
+                'mappingParamIndex': 1,
+                'optionsDictKey': 'strides',
+                'sequenceIndex': 0,
+                'mappingRuleType': 1
+            },
+            {
+                'name': 'filterWidth',
+                'mappingParamIndex': 1,
+                'optionsDictKey': 'windowDimensions',
+                'sequenceIndex': 1, # [window_height, window_width]
+                'mappingRuleType': 1
+            },
+            {
+                'name': 'filterHeight',
+                'mappingParamIndex': 1,
+                'optionsDictKey': 'windowDimensions',
+                'sequenceIndex': 0,
+                'mappingRuleType': 1
+            },
+            {
+                'name': 'activation',
+                'mappingParamIndex': -1
+            }
+        ],
+        'optionalInsList': [
+            {
+                'name': 'layout',
+                'mappingParamIndex': 1,
+                'optionsDictKey': 'layout',
+                'mappingRuleType': 1
+            }
+        ]
+    },
+    'INSTANCE_NORMALIZATION': {
+        'webnnOperation': 'instanceNormalization',
+        'insList': [
+            {
+                'name': 'input',
+                'mappingParamIndex': 0,
+                'mappingRuleType': 0
+            },
+            {
+                'name': 'gamma',
+                'mappingParamIndex': 1,
+                'optionsDictKey': 'scale',
+                'mappingRuleType': 0
+            },
+            {
+                'name': 'beta',
+                'mappingParamIndex': 1,
+                'optionsDictKey': 'bias',
+                'mappingRuleType': 0
+            },
+            {
+                'name': 'epsilon',
+                'mappingParamIndex': 1,
+                'optionsDictKey': 'epsilon',
+                'mappingRuleType': 1
+            },
+            {
+                'name': 'layout',
+                'mappingParamIndex': 1,
+                'optionsDictKey': 'layout',
+                'mappingRuleType': 1
+            }
+        ]
+    },
+    'LOG': {
+        'webnnOperation': 'log',
+        'insList': [
+            {
+                'name': 'input',
+                'mappingParamIndex': 0,
+                'mappingRuleType': 0
             }
         ]
     },
@@ -497,6 +639,155 @@ MappingDict = {
             }
         ]
     },
+    'NEG': {
+        'webnnOperation': 'neg',
+        'insList': [
+            {
+                'name': 'input',
+                'mappingParamIndex': 0,
+                'mappingRuleType': 0
+            }
+        ]
+    },
+    'PAD': {
+        'webnnOperation': 'pad',
+        'insList': [
+            {
+                'name': 'input',
+                'mappingParamIndex': 0,
+                'mappingRuleType': 0
+            },
+            {
+                'name': 'padding',
+                'mappingParamIndex': 1,
+                'mappingRuleType': 0
+            }
+        ]
+    },
+    'PAD_V2': {
+        'webnnOperation': 'pad',
+        'insList': [
+            {
+                'name': 'input',
+                'mappingParamIndex': 0,
+                'mappingRuleType': 0
+            },
+            {
+                'name': 'padding',
+                'mappingParamIndex': 1,
+                'mappingRuleType': 0
+            },
+            {
+                'name': 'value',
+                'mappingParamIndex': 2,
+                'optionsDictKey': 'value',
+                'mappingRuleType': 1
+            }
+        ]
+    },
+    'POW': {
+        'webnnOperation': 'pow',
+        'insList': [
+            {
+                'name': 'input0',
+                'mappingParamIndex': 0,
+                'mappingRuleType': 0
+            },
+            {
+                'name': 'input1',
+                'mappingParamIndex': 1,
+                'mappingRuleType': 0
+            }
+        ]
+    },
+    'REDUCE_MAX': {
+        'webnnOperation': 'reduceMax',
+        'insList': [
+            {
+                'name': 'input0',
+                'mappingParamIndex': 0,
+                'mappingRuleType': 0
+            },
+            {
+                'name': 'input1',
+                'mappingParamIndex': 1,
+                'optionsDictKey': 'axes',
+                'mappingRuleType': 3
+            },
+            {
+                'name': 'input2',
+                'mappingParamIndex': 1,
+                'optionsDictKey': 'keepDimensions',
+                'mappingRuleType': 1
+            },
+        ]
+    },
+    'REDUCE_MIN': {
+        'webnnOperation': 'reduceMin',
+        'insList': [
+            {
+                'name': 'input0',
+                'mappingParamIndex': 0,
+                'mappingRuleType': 0
+            },
+            {
+                'name': 'input1',
+                'mappingParamIndex': 1,
+                'optionsDictKey': 'axes',
+                'mappingRuleType': 3
+            },
+            {
+                'name': 'input2',
+                'mappingParamIndex': 1,
+                'optionsDictKey': 'keepDimensions',
+                'mappingRuleType': 1
+            },
+        ]
+    },
+    'REDUCE_PROD': {
+        'webnnOperation': 'reduceProduct',
+        'insList': [
+            {
+                'name': 'input0',
+                'mappingParamIndex': 0,
+                'mappingRuleType': 0
+            },
+            {
+                'name': 'input1',
+                'mappingParamIndex': 1,
+                'optionsDictKey': 'axes',
+                'mappingRuleType': 3
+            },
+            {
+                'name': 'input2',
+                'mappingParamIndex': 1,
+                'optionsDictKey': 'keepDimensions',
+                'mappingRuleType': 1
+            },
+        ]
+    },
+    'REDUCE_SUM': {
+        'webnnOperation': 'reduceSum',
+        'insList': [
+            {
+                'name': 'input0',
+                'mappingParamIndex': 0,
+                'mappingRuleType': 0
+            },
+            {
+                'name': 'input1',
+                'mappingParamIndex': 1,
+                'optionsDictKey': 'axes',
+                'mappingRuleType': 3
+            },
+            {
+                'name': 'input2',
+                'mappingParamIndex': 1,
+                'optionsDictKey': 'keepDimensions',
+                'mappingRuleType': 1
+            },
+        ]
+    },
     'RELU': {
         'webnnOperation': 'relu',
         'insList': [
@@ -539,6 +830,146 @@ MappingDict = {
                 'name': 'shape',
                 'mappingParamIndex': 1,
                 'mappingRuleType': 2
+            }
+        ]
+    },
+    'RESIZE_BILINEAR': {
+        'webnnOperation': 'resample2d',
+        'insList': {
+            'shape': [
+                {
+                    'name': 'input',
+                    'mappingParamIndex': 0,
+                    'mappingRuleType': 0
+                },
+                {
+                    'name': 'outputWidth',
+                    'mappingParamIndex': 1,
+                    'optionsDictKey': 'sizes',
+                    'sequenceIndex': 1,
+                    'mappingRuleType': 1
+                },
+                {
+                    'name': 'outputHeight',
+                    'mappingParamIndex': 1,
+                    'optionsDictKey': 'sizes',
+                    'sequenceIndex': 0,
+                    'mappingRuleType': 1
+                },            
+            ],
+            'scale': [
+                {
+                    'name': 'input',
+                    'mappingParamIndex': 0,
+                    'mappingRuleType': 0
+                },
+                {
+                    'name': 'widthScale',
+                    'mappingParamIndex': 1,
+                    'optionsDictKey': 'scales',
+                    'sequenceIndex': 1,
+                    'mappingRuleType': 1
+                },
+                {
+                    'name': 'heightScale',
+                    'mappingParamIndex': 1,
+                    'optionsDictKey': 'scales',
+                    'sequenceIndex': 0,
+                    'mappingRuleType': 1
+                },            
+            ], 
+        },
+        'optionalInsList': [
+            {
+                'name': 'layout',
+                'mappingParamIndex': -1,
+                'optionsDictKey': 'axes',
+                'mappingRuleType': 2
+            },
+            {
+                'name': 'alignCorners',
+                'mappingParamIndex': -1,
+                'mappingRuleType': 1
+            },
+            {
+                'name': 'halfPixelCenters',
+                'mappingParamIndex': -1,
+                'mappingRuleType': 1
+            }                        
+        ]                
+    },
+    'RESIZE_NEAREST_NEIGHBOR': {
+        'webnnOperation': 'resample2d',
+        'insList': {
+            'shape': [
+                {
+                    'name': 'input',
+                    'mappingParamIndex': 0,
+                    'mappingRuleType': 0
+                },
+                {
+                    'name': 'outputWidth',
+                    'mappingParamIndex': 1,
+                    'optionsDictKey': 'sizes',
+                    'sequenceIndex': 1,
+                    'mappingRuleType': 1
+                },
+                {
+                    'name': 'outputHeight',
+                    'mappingParamIndex': 1,
+                    'optionsDictKey': 'sizes',
+                    'sequenceIndex': 0,
+                    'mappingRuleType': 1
+                },            
+            ],
+            'scale': [
+                {
+                    'name': 'input',
+                    'mappingParamIndex': 0,
+                    'mappingRuleType': 0
+                },
+                {
+                    'name': 'widthScale',
+                    'mappingParamIndex': 1,
+                    'optionsDictKey': 'scales',
+                    'sequenceIndex': 1,
+                    'mappingRuleType': 1
+                },
+                {
+                    'name': 'heightScale',
+                    'mappingParamIndex': 1,
+                    'optionsDictKey': 'scales',
+                    'sequenceIndex': 0,
+                    'mappingRuleType': 1
+                },            
+            ], 
+        },
+        'optionalInsList': [
+            {
+                'name': 'layout',
+                'mappingParamIndex': -1,
+                'optionsDictKey': 'axes',
+                'mappingRuleType': 1
+            },
+            {
+                'name': 'alignCorners',
+                'mappingParamIndex': -1,
+                'mappingRuleType': 1
+            },
+            {
+                'name': 'halfPixelCenters',
+                'mappingParamIndex': -1,
+                'mappingRuleType': 1
+            }                        
+        ]                
+    },
+    'SIN': {
+        'webnnOperation': 'sin',
+        'insList': [
+            {
+                'name': 'input',
+                'mappingParamIndex': 0,
+                'mappingRuleType': 0
             }
         ]
     },
