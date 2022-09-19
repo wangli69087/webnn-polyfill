@@ -140,8 +140,8 @@ describe('test MLContext.compute', function() {
         const shapeY = [2, 4];
         const bufferY = new Float32Array(utils.sizeOfShape(shapeY)).fill(1);
         const inputs = {
-          x: {resource: bufferX, dimensions: shapeX},
-          y: {resource: bufferY, dimensions: shapeY},
+          x: {resource: bufferX},
+          y: {resource: bufferY},
         };
         const shapeZ = [shapeX[0], shapeY[1]];
         const outputs = {z: new Float32Array(utils.sizeOfShape(shapeZ))};
@@ -246,25 +246,6 @@ describe('test MLContext.compute', function() {
                 b: {resource: bufferB, dimensions: [2]},
               },
               {c: bufferC});
-          assert.fail();
-        } catch (err) {
-          assert(!(err instanceof chai.AssertionError), 'No throwing');
-          expect(err).to.be.an.instanceof(Error);
-        }
-      });
-
-  it('MLContext.compute should throw for no dimensions for dynamic shape',
-      async () => {
-        const graph = await builder.build({z});
-        const shapeX = [3, 2];
-        const bufferX = new Float32Array(utils.sizeOfShape(shapeX)).fill(1);
-        const shapeY = [2, 4];
-        const bufferY = new Float32Array(utils.sizeOfShape(shapeY)).fill(1);
-        const inputs = {x: {resource: bufferX}, y: {resource: bufferY}};
-        const shapeZ = [shapeX[0], shapeY[1]];
-        const outputs = {z: new Float32Array(utils.sizeOfShape(shapeZ))};
-        try {
-          await context.compute(graph, inputs, outputs);
           assert.fail();
         } catch (err) {
           assert(!(err instanceof chai.AssertionError), 'No throwing');
